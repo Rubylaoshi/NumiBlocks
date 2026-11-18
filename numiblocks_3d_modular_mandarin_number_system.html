@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NumiBlocks: 3D Modular Mandarin Number System</title>
+  <!-- Load Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Font: Inter & Fredoka for rounded educational numerals -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #F6EEFF 0%, #FFF4EB 100%);
+      color: #1E1B4B;
+      user-select: none;
+    }
+
+    .font-display {
+      font-family: 'Fredoka', 'Inter', sans-serif;
+    }
+
+    /* Smooth pop-in animation when snapping a block onto the base */
+    @keyframes snapDrop {
+      0% {
+        transform: translateY(-28px) scale(0.95);
+        opacity: 0.4;
+      }
+      70% {
+        transform: translateY(3px) scale(1.02);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .animate-snap {
+      animation: snapDrop 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    /* Subtle pulse for active slot selection */
+    @keyframes slotPulse {
+      0%, 100% {
+        opacity: 0.85;
+      }
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    .slot-highlight {
+      animation: slotPulse 1.6s infinite ease-in-out;
+    }
+
+    /* Custom card shadow matching the presentation slides */
+    .slide-card {
+      background: #FFFFFF;
+      border: 3px solid #6B21A8;
+      box-shadow: 0 6px 0 #D8B4FE;
+      border-radius: 1.25rem;
+    }
+
+    .block-card {
+      background: #FFFFFF;
+      border: 2.5px solid #7E22CE;
+      box-shadow: 0 4px 0 #E9D5FF;
+      border-radius: 1rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .block-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 0 #C084FC;
+      border-color: #EA580C;
+    }
+
+    .block-card:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 0 #C084FC;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 sm:p-5 md:p-6">
+
+  <!-- Top Header Banner matching the presentation aesthetic -->
+  <header class="max-w-6xl w-full mx-auto mb-4">
+    <div class="bg-gradient-to-r from-[#6B21A8] via-[#7E22CE] to-[#EA580C] text-white rounded-2xl px-5 py-3.5 shadow-lg flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <!-- Mini 3D Cube Logo -->
+        <div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/30 shadow-inner">
+          <svg viewBox="0 0 40 40" class="w-7 h-7">
+            <polygon points="20,4 35,12 20,20 5,12" fill="#F2B718"/>
+            <polygon points="5,12 20,20 20,36 5,28" fill="#C82323"/>
+            <polygon points="20,20 35,12 35,28 20,36" fill="#12B8C4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display text-xl sm:text-2xl font-bold tracking-tight">NumiBlocks</h1>
+            <span class="text-xs font-semibold uppercase tracking-wider bg-amber-300 text-purple-950 px-2.5 py-0.5 rounded-full">
+              Interactive 3D Lab
+            </span>
+          </div>
+          <p class="text-xs sm:text-sm text-purple-100">3D-Modular Mandarin Number System (0–999)</p>
+        </div>
+      </div>
+
+      <!-- Quick Rule Presets for Judges & Students -->
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <span class="text-xs font-semibold text-purple-100 mr-1 hidden md:inline">Try Key Rules:</span>
+        <button onclick="loadPreset(11)" class="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold transition border border-white/25" title="Leading 1 stays silent">
+          11 <span class="opacity-80 font-normal">(shíyī)</span>
+        </button>
+        <button onclick="loadPreset(20)" class="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold transition border border-white/25" title="Trailing 0 stays silent">
+          20 <span class="opacity-80 font-normal">(èrshí)</span>
+        </button>
+        <button onclick="loadPreset(68)" class="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold transition border border-white/25" title="Standard full assembly">
+          68 <span class="opacity-80 font-normal">(liùshíbā)</span>
+        </button>
+        <button onclick="loadPreset(105)" class="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-bold transition shadow-sm" title="Middle 0 bridges gap -> Voiced líng">
+          105 <span class="font-semibold">(líng)</span>
+        </button>
+        <button onclick="loadPreset(113)" class="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-bold transition shadow-sm" title="Middle 1 locked in -> Voiced yī">
+          113 <span class="font-semibold">(yìshí)</span>
+        </button>
+        <button onclick="loadPreset(200)" class="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-bold transition border border-white/25" title="Trailing zeros silent + èr/liǎng">
+          200 <span class="opacity-80 font-normal">(èrbǎi)</span>
+        </button>
+        <button onclick="loadRandomNumber()" class="px-3 py-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-emerald-950 text-xs font-extrabold transition shadow-sm flex items-center gap-1">
+          🎲 Random
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 4-Step Guided Workflow Indicator Bar -->
+  <section class="max-w-6xl w-full mx-auto mb-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <!-- Step 1 -->
+      <div id="step-pill-1" class="bg-white border-2 border-purple-600 rounded-xl px-3.5 py-2.5 shadow-sm flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-purple-700 text-white font-display font-bold text-sm flex items-center justify-center shrink-0">1</span>
+        <div class="leading-tight">
+          <div class="text-xs font-extrabold uppercase text-purple-800">Step 1: Pick Base</div>
+          <div class="text-xs text-slate-600">Select <span class="font-semibold">shí [10]</span> or <span class="font-semibold">bǎi [100]</span></div>
+        </div>
+      </div>
+      <!-- Step 2 -->
+      <div id="step-pill-2" class="bg-white border-2 border-orange-500 rounded-xl px-3.5 py-2.5 shadow-sm flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-orange-600 text-white font-display font-bold text-sm flex items-center justify-center shrink-0">2</span>
+        <div class="leading-tight">
+          <div class="text-xs font-extrabold uppercase text-orange-700">Step 2: Snap Blocks</div>
+          <div class="text-xs text-slate-600">Tap a slot &amp; snap 0–9 cubes</div>
+        </div>
+      </div>
+      <!-- Step 3 -->
+      <div id="step-pill-3" class="bg-white border-2 border-teal-600 rounded-xl px-3.5 py-2.5 shadow-sm flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-teal-600 text-white font-display font-bold text-sm flex items-center justify-center shrink-0">3</span>
+        <div class="leading-tight">
+          <div class="text-xs font-extrabold uppercase text-teal-800">Step 3: Opacity Check</div>
+          <div class="text-xs text-slate-600">Solid = Voice | Translucent = Silent</div>
+        </div>
+      </div>
+      <!-- Step 4 -->
+      <div id="step-pill-4" class="bg-white border-2 border-rose-600 rounded-xl px-3.5 py-2.5 shadow-sm flex items-center gap-2.5">
+        <span class="w-7 h-7 rounded-full bg-rose-600 text-white font-display font-bold text-sm flex items-center justify-center shrink-0">4</span>
+        <div class="leading-tight">
+          <div class="text-xs font-extrabold uppercase text-rose-800">Step 4: Number Pinyin</div>
+          <div class="text-xs text-slate-600">Read &amp; listen instantly</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Interactive Stage -->
+  <main class="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5 flex-grow">
+
+    <!-- LEFT / CENTRE: 3D Acrylic Base Assembly Stage (7 Columns) -->
+    <div class="lg:col-span-7 slide-card p-4 sm:p-6 flex flex-col justify-between relative overflow-hidden">
+      <!-- Top Controls: Step 1 Base Selector -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-purple-100 pb-3.5">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-purple-700">Step 1 — Acrylic Value Base</span>
+          <h2 class="font-display text-lg font-bold text-slate-900" id="base-title">Hundreds Place Base (3-Digit: 100–999)</h2>
+        </div>
+
+        <div class="inline-flex rounded-xl bg-purple-100 p-1 border border-purple-200">
+          <button id="btn-base-2" onclick="setBaseMode(2)" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition text-purple-800 hover:bg-white/60">
+            shí [10] (2-Slot)
+          </button>
+          <button id="btn-base-3" onclick="setBaseMode(3)" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition bg-purple-700 text-white shadow">
+            bǎi [100] (3-Slot)
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive 3D Isometric Canvas Area -->
+      <div class="my-3 flex flex-col items-center justify-center bg-gradient-to-b from-purple-50/70 to-slate-100/80 rounded-2xl border border-purple-100 p-3 sm:p-4 relative min-h-[290px] sm:min-h-[330px]">
+        <!-- Subtle instruction badge -->
+        <div class="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 backdrop-blur px-3 py-1 rounded-full border border-purple-200 text-xs font-semibold text-purple-900 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+          <span>Active Slot: <strong id="active-slot-label" class="text-orange-600">Hundreds (bǎi)</strong></span>
+        </div>
+
+        <!-- Opacity Rule Mode Toggle (Auto vs Preview Ghost) -->
+        <button onclick="toggleRuleHints()" id="btn-toggle-hints" class="absolute top-3 right-3 bg-white/90 hover:bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs font-bold text-purple-800 shadow-sm transition">
+          👁️ Rule Badges: ON
+        </button>
+
+        <!-- Dynamic 3D Isometric SVG Assembly -->
+        <div id="isometric-stage" class="w-full max-w-[520px] flex items-center justify-center mt-5">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Slot Selector Buttons underneath SVG for effortless mobile/tablet tapping -->
+        <div id="slot-selector-bar" class="mt-2 flex flex-wrap items-center justify-center gap-2">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Step 3: Opacity Check Live Rule Breakdown -->
+      <div class="bg-purple-50 border border-purple-200 rounded-xl p-3.5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+            🔍 Step 3 — Opacity Check (Solid vs. Translucent Logic)
+          </span>
+          <span class="text-[11px] font-semibold text-purple-700 bg-white px-2.5 py-0.5 rounded-full border border-purple-200">
+            Solid = Voice 🔊 &nbsp;|&nbsp; Translucent = Silent 🔇
+          </span>
+        </div>
+        <div id="opacity-breakdown" class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <!-- Dynamically populated per slot -->
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Step 4 Output Card + Step 2 Block Palette (5 Columns) -->
+    <div class="lg:col-span-5 flex flex-col gap-4 md:gap-5">
+
+      <!-- Step 4: Number & Pinyin Output Card -->
+      <div class="slide-card p-4 sm:p-5 bg-white relative">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-rose-700">
+            ✨ Step 4 — Show Number &amp; Pinyin
+          </span>
+          <button onclick="speakCurrentNumber()" id="btn-speak" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white text-xs sm:text-sm font-bold shadow-md flex items-center gap-1.5 transition active:scale-95">
+            <span>🔊 Listen</span>
+          </button>
+        </div>
+
+        <!-- Big Numeral, Colour-Coded Pinyin & Hanzi Display -->
+        <div class="bg-gradient-to-br from-purple-50 via-white to-orange-50 border-2 border-purple-200 rounded-2xl p-4 text-center">
+          <div class="flex items-baseline justify-center gap-3 mb-1">
+            <span id="output-digits" class="font-display text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">105</span>
+            <span id="output-hanzi" class="text-2xl sm:text-3xl font-bold text-purple-800">一百零五</span>
+          </div>
+
+          <!-- Colour-Matched Pinyin Output -->
+          <div id="output-pinyin" class="font-display text-2xl sm:text-3xl font-bold tracking-wide my-1.5 flex flex-wrap items-center justify-center gap-x-2">
+            <!-- Rendered with matching block colours -->
+          </div>
+
+          <!-- Literal Structural Breakdown -->
+          <p id="output-literal" class="text-xs sm:text-sm font-semibold text-slate-600 mt-1">
+            Read as: <span class="text-slate-900">one hundred zero five</span>
+          </p>
+
+          <!-- Special Rule Callout Banner -->
+          <div id="special-rule-banner" class="mt-3 text-xs font-semibold px-3 py-2 rounded-xl bg-amber-100 text-amber-950 border border-amber-300">
+            💡 Middle <strong>0</strong> bridges the gap between hundreds and ones → snaps in as a <strong>Solid White</strong> block and is voiced as <strong>líng</strong>!
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: 10-Digit Modular Cube Palette -->
+      <div class="slide-card p-4 sm:p-5 flex-grow flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <span class="text-xs font-extrabold uppercase tracking-wider text-orange-700">
+              🧱 Step 2 — Snap 3D Digit Blocks (0–9)
+            </span>
+            <p class="text-xs text-slate-500">Click any cube to place it into the highlighted slot</p>
+          </div>
+        </div>
+
+        <!-- 5x2 Grid of Isometric Digit Cubes matching user's exact colours -->
+        <div id="digit-palette" class="grid grid-cols-5 gap-2 sm:gap-2.5">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Footer Tip -->
+        <div class="mt-3 pt-2.5 border-t border-purple-100 text-[11px] text-slate-500">
+          <span>Tip: Try placing <strong>1</strong> or <strong>0</strong> in different slots to watch opacity change!</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Subtle Faded Attribution Footer -->
+  <footer class="max-w-6xl w-full mx-auto mt-5 mb-1 text-center text-xs leading-relaxed" style="color: #94a3b8;">
+    <p class="font-medium">Designed for UMS UN00102 Mandarin Course Students</p>
+    <p>Prepared by Team Yong Zi Hong | Universiti Malaysia Sabah</p>
+  </footer>
+
+  <script>
+    /**
+     * Exact colour and Pinyin specification matching the user's 3D NumiBlocks slides
+     */
+    const BLOCK_SPECS = {
+      0: { digit: 0, pinyin: 'líng', hanzi: '零', top: '#FFFFFF', left: '#EBEBEB', right: '#D4D4D8', text: '#64748B', pinyinTextClass: 'text-slate-500' },
+      1: { digit: 1, pinyin: 'yī',   hanzi: '一', top: '#E02E2E', left: '#C82323', right: '#991B1B', text: '#FFFFFF', pinyinTextClass: 'text-[#C82323]' },
+      2: { digit: 2, pinyin: 'èr',   hanzi: '二', top: '#F97316', left: '#E86A17', right: '#C2410C', text: '#FFFFFF', pinyinTextClass: 'text-[#E86A17]' },
+      3: { digit: 3, pinyin: 'sān',  hanzi: '三', top: '#FACC15', left: '#F2B718', right: '#CA8A04', text: '#FFFFFF', pinyinTextClass: 'text-[#D99B06]' },
+      4: { digit: 4, pinyin: 'sì',   hanzi: '四', top: '#9BE564', left: '#7ED357', right: '#56A832', text: '#FFFFFF', pinyinTextClass: 'text-[#56A832]' },
+      5: { digit: 5, pinyin: 'wǔ',   hanzi: '五', top: '#22D3EE', left: '#12B8C4', right: '#0E7490', text: '#FFFFFF', pinyinTextClass: 'text-[#0E9AA7]' },
+      6: { digit: 6, pinyin: 'liù',  hanzi: '六', top: '#A5F3FC', left: '#8CE0DC', right: '#5BB5B0', text: '#FFFFFF', pinyinTextClass: 'text-[#3B9E99]' },
+      7: { digit: 7, pinyin: 'qī',   hanzi: '七', top: '#3B82F6', left: '#2E4BC6', right: '#1E3A8A', text: '#FFFFFF', pinyinTextClass: 'text-[#2E4BC6]' },
+      8: { digit: 8, pinyin: 'bā',   hanzi: '八', top: '#2B3A7A', left: '#1E2756', right: '#111636', text: '#FFFFFF', pinyinTextClass: 'text-[#1E2756]' },
+      9: { digit: 9, pinyin: 'jiǔ',  hanzi: '九', top: '#7E22CE', left: '#5E1B7A', right: '#3B0764', text: '#FFFFFF', pinyinTextClass: 'text-[#5E1B7A]' }
+    };
+
+    const ENGLISH_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+
+    // Application State (Default starts on 105 to showcase the signature voiced-zero rule)
+    let state = {
+      baseSize: 3,         // 2 = Tens Base (shí [10]), 3 = Hundreds Base (bǎi [100])
+      digits: [1, 0, 5],   // Array of length 2 or 3
+      activeSlot: 1,       // Index currently selected for snapping
+      showRuleBadges: true,
+      lastAnimatedSlot: -1
+    };
+
+    /**
+     * Generates a crisp SVG 3D isometric cube matching the user's embossed Pinyin + front digit blocks
+     */
+    function createIsometricCubeSVG(digit, isGhost = false, size = 76) {
+      const spec = BLOCK_SPECS[digit];
+      if (!isGhost) {
+        return `
+          <svg viewBox="0 0 100 106" width="${size}" height="${size * 1.06}" class="overflow-visible drop-shadow-md">
+            <!-- Top Isometric Face -->
+            <polygon points="50,8 90,30 50,52 10,30" fill="${spec.top}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            <!-- Left Isometric Face -->
+            <polygon points="10,30 50,52 50,98 10,76" fill="${spec.left}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            <!-- Right Isometric Face -->
+            <polygon points="50,52 90,30 90,76 50,98" fill="${spec.right}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+
+            <!-- Embossed Top Pinyin -->
+            <g transform="translate(50, 31) rotate(-28) skewX(28)">
+              <text x="0" y="4" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="16"
+                    fill="rgba(0,0,0,0.22)" transform="translate(1, 1.5)">${spec.pinyin}</text>
+              <text x="0" y="4" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="16"
+                    fill="${digit === 0 ? '#475569' : '#FFFFFF'}">${spec.pinyin}</text>
+            </g>
+
+            <!-- Embossed Right/Front Numeral -->
+            <g transform="translate(70, 66) skewY(-28)">
+              <text x="0" y="10" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="31"
+                    fill="rgba(0,0,0,0.24)" transform="translate(1.5, 1.5)">${digit}</text>
+              <text x="0" y="10" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="31"
+                    fill="${digit === 0 ? '#64748B' : '#FFFFFF'}">${digit}</text>
+            </g>
+          </svg>
+        `;
+      } else {
+        // Frosted Translucent "Ghost" Block matching image_f2d342.png & image_f2d327.png
+        return `
+          <svg viewBox="0 0 100 106" width="${size}" height="${size * 1.06}" class="overflow-visible">
+            <!-- Internal hollow acrylic refraction lines -->
+            <polygon points="50,18 80,34 50,50 20,34" fill="rgba(255,255,255,0.25)" stroke="rgba(148,163,184,0.35)" stroke-width="1"/>
+            <line x1="50" y1="50" x2="50" y2="86" stroke="rgba(148,163,184,0.35)" stroke-width="1"/>
+
+            <!-- Top Frosted Face -->
+            <polygon points="50,8 90,30 50,52 10,30" fill="rgba(255,255,255,0.68)" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <!-- Left Frosted Face -->
+            <polygon points="10,30 50,52 50,98 10,76" fill="rgba(226,232,240,0.58)" stroke="#94A3B8" stroke-width="1.5"/>
+            <!-- Right Frosted Face -->
+            <polygon points="50,52 90,30 90,76 50,98" fill="rgba(203,213,225,0.52)" stroke="#94A3B8" stroke-width="1.5"/>
+
+            <!-- Ghost Top Pinyin -->
+            <g transform="translate(50, 31) rotate(-28) skewX(28)">
+              <text x="0" y="4" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="16"
+                    fill="#64748B" opacity="0.75">${spec.pinyin}</text>
+            </g>
+
+            <!-- Ghost Front Numeral -->
+            <g transform="translate(70, 66) skewY(-28)">
+              <text x="0" y="10" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="31"
+                    fill="#FFFFFF" stroke="#64748B" stroke-width="1.2" opacity="0.9">${digit}</text>
+            </g>
+          </svg>
+        `;
+      }
+    }
+
+    /**
+     * Core Mandarin Number Rule Engine (Step 3 Opacity Check + Step 4 Pinyin/Hanzi Generator)
+     * Evaluates each slot to determine if a block is SOLID (voiced) or TRANSLUCENT GHOST (silent)
+     */
+    function evaluateNumberRules() {
+      const d = state.digits;
+      const is3 = state.baseSize === 3;
+
+      if (!is3) {
+        // 2-Digit Tens Base: [tens, ones] -> range 10..99
+        const [tens, ones] = d;
+        const tensIsGhost = (tens === 1); // 10–19: leading '1' before shí is silent
+        const onesIsGhost = (ones === 0); // 10, 20..90: trailing '0' is silent
+
+        const slots = [
+          {
+            role: 'Tens (shí)',
+            digit: tens,
+            isGhost: tensIsGhost,
+            statusLabel: tensIsGhost ? 'Silent Variable 🔇' : 'Solid Variable 🔊',
+            reason: tensIsGhost
+              ? 'Leading "1" before shí switches to Translucent Ghost → skip "yī"!'
+              : `Solid digit "${tens}" before shí → voiced as "${BLOCK_SPECS[tens].pinyin} shí".`
+          },
+          {
+            role: 'Ones (1–9)',
+            digit: ones,
+            isGhost: onesIsGhost,
+            statusLabel: onesIsGhost ? 'Silent Zero 🔇' : 'Solid Variable 🔊',
+            reason: onesIsGhost
+              ? 'Trailing "0" switches to Translucent Ghost → silent (muted).'
+              : `Solid final digit "${ones}" → voiced as "${BLOCK_SPECS[ones].pinyin}".`
+          }
+        ];
+
+        // Build Pinyin segments
+        const pinyinParts = [];
+        if (!tensIsGhost) {
+          pinyinParts.push({ text: BLOCK_SPECS[tens].pinyin, colorClass: BLOCK_SPECS[tens].pinyinTextClass });
+        }
+        pinyinParts.push({ text: 'shí', colorClass: 'text-slate-700' });
+        if (!onesIsGhost) {
+          pinyinParts.push({ text: BLOCK_SPECS[ones].pinyin, colorClass: BLOCK_SPECS[ones].pinyinTextClass });
+        }
+
+        // Build Hanzi & English literal
+        const hanzi = `${tensIsGhost ? '' : BLOCK_SPECS[tens].hanzi}十${onesIsGhost ? '' : BLOCK_SPECS[ones].hanzi}`;
+        const literal = `${tensIsGhost ? 'ten' : ENGLISH_WORDS[tens] + ' ten'}${onesIsGhost ? '' : ' ' + ENGLISH_WORDS[ones]}`;
+
+        // Special pedagogical insight banner
+        let banner = '';
+        if (tens === 1 && ones > 0) {
+          banner = `💡 <strong>Trap Solved (11–19):</strong> Leading <strong>1</strong> becomes a <strong>Translucent Ghost</strong> block so learners skip "yī" and say <strong>shí${BLOCK_SPECS[ones].pinyin}</strong>!`;
+        } else if (ones === 0) {
+          banner = `💡 <strong>Round Tens Rule:</strong> Trailing <strong>0</strong> becomes a <strong>Translucent Ghost</strong> block (silent), leaving <strong>${tens === 1 ? 'shí' : BLOCK_SPECS[tens].pinyin + 'shí'}</strong>.`;
+        } else {
+          banner = `✅ <strong>Full Solid Assembly:</strong> Both slots hold solid cubes — read straight across: <strong>${BLOCK_SPECS[tens].pinyin} shí ${BLOCK_SPECS[ones].pinyin}</strong>.`;
+        }
+
+        return {
+          numberValue: tens * 10 + ones,
+          slots,
+          pinyinParts,
+          hanzi,
+          literal,
+          banner,
+          speechText: hanzi
+        };
+      } else {
+        // 3-Digit Hundreds Base: [hundreds, tens, ones] -> range 100..999
+        const [hundreds, tens, ones] = d;
+        const hundredsIsGhost = false; // Hundreds multiplier 1..9 is always solid
+
+        // Middle tens slot opacity rule:
+        // - If tens === 0 and ones === 0 (e.g. 200) -> trailing Ghost 0 (silent)
+        // - If tens === 0 and ones > 0 (e.g. 105) -> Solid White 0 bridging gap -> Voiced "líng"!
+        // - If tens === 1 (e.g. 113, 219) -> Locked between bǎi and shí -> Solid Red 1 -> Voiced "yī"!
+        // - If tens >= 2 -> Solid digit 2..9
+        const tensIsGhost = (tens === 0 && ones === 0);
+        const onesIsGhost = (ones === 0);
+
+        const slots = [
+          {
+            role: 'Hundreds (bǎi)',
+            digit: hundreds,
+            isGhost: hundredsIsGhost,
+            statusLabel: 'Solid Variable 🔊',
+            reason: hundreds === 2
+              ? 'Solid "2" before bǎi → voiced as "èrbǎi" (or "liǎngbǎi" in daily speech).'
+              : `Solid "${hundreds}" before bǎi → voiced as "${hundreds === 1 ? 'yìbǎi' : BLOCK_SPECS[hundreds].pinyin + 'bǎi'}".`
+          },
+          {
+            role: 'Tens (shí)',
+            digit: tens,
+            isGhost: tensIsGhost,
+            statusLabel: tensIsGhost
+              ? 'Silent Zero 🔇'
+              : (tens === 0 ? 'Voiced Zero 🔊' : 'Solid Variable 🔊'),
+            reason: tensIsGhost
+              ? 'Trailing "0" at the end of round hundreds → Translucent Ghost (silent).'
+              : (tens === 0
+                  ? 'Middle "0" bridges a gap before a non-zero digit → locks in as Solid White "líng"!'
+                  : (tens === 1
+                      ? 'Middle "1" is locked between bǎi and shí → stays Solid Red and MUST be voiced ("yī")!'
+                      : `Solid "${tens}" in tens slot → voiced as "${BLOCK_SPECS[tens].pinyin} shí".`))
+          },
+          {
+            role: 'Ones (1–9)',
+            digit: ones,
+            isGhost: onesIsGhost,
+            statusLabel: onesIsGhost ? 'Silent Zero 🔇' : 'Solid Variable 🔊',
+            reason: onesIsGhost
+              ? 'Trailing "0" switches to Translucent Ghost → silent (muted).'
+              : `Solid final digit "${ones}" → voiced as "${BLOCK_SPECS[ones].pinyin}".`
+          }
+        ];
+
+        const pinyinParts = [];
+        // Tone sandhi visual helper for 100 (yìbǎi) and 200 (èr/liǎngbǎi)
+        if (hundreds === 1) {
+          pinyinParts.push({ text: 'yì', colorClass: BLOCK_SPECS[1].pinyinTextClass });
+          pinyinParts.push({ text: 'bǎi', colorClass: 'text-slate-700' });
+        } else if (hundreds === 2) {
+          pinyinParts.push({ text: 'èr / liǎng', colorClass: BLOCK_SPECS[2].pinyinTextClass });
+          pinyinParts.push({ text: 'bǎi', colorClass: 'text-slate-700' });
+        } else {
+          pinyinParts.push({ text: BLOCK_SPECS[hundreds].pinyin, colorClass: BLOCK_SPECS[hundreds].pinyinTextClass });
+          pinyinParts.push({ text: 'bǎi', colorClass: 'text-slate-700' });
+        }
+
+        // Middle tens Pinyin
+        if (tens === 0 && ones > 0) {
+          pinyinParts.push({ text: 'líng', colorClass: 'text-slate-500' });
+        } else if (tens > 0) {
+          // Note: 110–119 in standard Mandarin can be yìbǎi yīshí...
+          pinyinParts.push({ text: BLOCK_SPECS[tens].pinyin, colorClass: BLOCK_SPECS[tens].pinyinTextClass });
+          pinyinParts.push({ text: 'shí', colorClass: 'text-slate-700' });
+        }
+
+        // Final ones Pinyin
+        if (!onesIsGhost) {
+          pinyinParts.push({ text: BLOCK_SPECS[ones].pinyin, colorClass: BLOCK_SPECS[ones].pinyinTextClass });
+        }
+
+        // Hanzi & English literal
+        let hanzi = `${BLOCK_SPECS[hundreds].hanzi}百`;
+        let literal = `${ENGLISH_WORDS[hundreds]} hundred`;
+
+        if (tens === 0 && ones > 0) {
+          hanzi += '零';
+          literal += ' zero';
+        } else if (tens > 0) {
+          hanzi += `${BLOCK_SPECS[tens].hanzi}十`;
+          literal += ` ${ENGLISH_WORDS[tens]} ten`;
+        }
+
+        if (ones > 0) {
+          hanzi += BLOCK_SPECS[ones].hanzi;
+          literal += ` ${ENGLISH_WORDS[ones]}`;
+        }
+
+        // Pedagogical banner explaining the exact active rule
+        let banner = '';
+        if (tens === 0 && ones === 0) {
+          banner = `💡 <strong>Round Hundreds Rule (${hundreds}00):</strong> Both trailing <strong>0</strong>s become <strong>Translucent Ghosts</strong> (silent) — only say <strong>${hundreds === 1 ? 'yìbǎi' : (hundreds === 2 ? 'èrbǎi / liǎngbǎi' : BLOCK_SPECS[hundreds].pinyin + 'bǎi')}</strong>!`;
+        } else if (tens === 0 && ones > 0) {
+          banner = `💡 <strong>Bridging Gap Rule (${hundreds}0${ones}):</strong> Middle <strong>0</strong> bridges hundreds and ones → locks in as <strong>Solid White</strong> and MUST be voiced as <strong>líng</strong>!`;
+        } else if (tens === 1) {
+          banner = `💡 <strong>Locked Middle "1" Rule (${hundreds}1${ones}):</strong> Unlike 11, this middle <strong>1</strong> is locked between bǎi and shí → stays <strong>Solid Red</strong> and is voiced as <strong>yīshí</strong>!`;
+        } else {
+          banner = `✅ <strong>Full Solid Assembly:</strong> Every slot is voiced directly from left to right!`;
+        }
+
+        return {
+          numberValue: hundreds * 100 + tens * 10 + ones,
+          slots,
+          pinyinParts,
+          hanzi,
+          literal,
+          banner,
+          speechText: hanzi
+        };
+      }
+    }
+
+    /**
+     * Renders the 3D Transparent Acrylic Base Plate and snaps the Isometric Cubes onto the studs
+     */
+    function renderIsometricAssembly(evaluation) {
+      const stage = document.getElementById('isometric-stage');
+      const is3 = state.baseSize === 3;
+
+      // Isometric slot anchor coordinates inside a unified 520x310 SVG scene
+      // Arranged cleanly along the isometric diagonal matching the user's slides
+      const slotCoords = is3
+        ? [
+            { x: 118, y: 158, baseNum: '100', basePinyin: 'bǎi' },
+            { x: 222, y: 102, baseNum: '10',  basePinyin: 'shí' },
+            { x: 326, y: 46,  baseNum: '',    basePinyin: '' }
+          ]
+        : [
+            { x: 165, y: 138, baseNum: '10',  basePinyin: 'shí' },
+            { x: 275, y: 78,  baseNum: '',    basePinyin: '' }
+          ];
+
+      // Build transparent acrylic base SVG slabs first (back to front so overlap is natural)
+      let baseSVG = '';
+      for (let i = slotCoords.length - 1; i >= 0; i--) {
+        const c = slotCoords[i];
+        const isSelected = (state.activeSlot === i);
+        const strokeCol = isSelected ? '#EA580C' : '#64748B';
+        const fillTop = isSelected ? 'rgba(255, 237, 213, 0.85)' : 'rgba(224, 242, 254, 0.65)';
+
+        baseSVG += `
+          <g class="cursor-pointer transition-opacity" onclick="selectSlot(${i})">
+            <!-- Acrylic Base Top -->
+            <polygon points="${c.x+55},${c.y+58} ${c.x+110},${c.y+88} ${c.x+55},${c.y+118} ${c.x},${c.y+88}"
+                     fill="${fillTop}" stroke="${strokeCol}" stroke-width="${isSelected ? 2.5 : 1.5}"/>
+            <!-- Acrylic Base Left Rim -->
+            <polygon points="${c.x},${c.y+88} ${c.x+55},${c.y+118} ${c.x+55},${c.y+136} ${c.x},${c.y+106}"
+                     fill="rgba(186, 230, 253, 0.72)" stroke="${strokeCol}" stroke-width="1.3"/>
+            <!-- Acrylic Base Right Rim -->
+            <polygon points="${c.x+55},${c.y+118} ${c.x+110},${c.y+88} ${c.x+110},${c.y+106} ${c.x+55},${c.y+136}"
+                     fill="rgba(148, 163, 184, 0.45)" stroke="${strokeCol}" stroke-width="1.3"/>
+
+            <!-- Engraved Base Value Labels ('100' / 'bǎi', '10' / 'shí') -->
+            ${c.baseNum ? `
+              <g transform="translate(${c.x+27}, ${c.y+115}) skewY(28)">
+                <text x="0" y="3" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="13" fill="#0F172A">${c.baseNum}</text>
+              </g>
+            ` : ''}
+            ${c.basePinyin ? `
+              <g transform="translate(${c.x+83}, ${c.y+115}) skewY(-28)">
+                <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Inter, sans-serif" font-weight="700" font-size="14" fill="#0F172A">${c.basePinyin}</text>
+              </g>
+            ` : ''}
+          </g>
+        `;
+      }
+
+      // Build snapped 3D Cubes (back to front so closer cubes overlap properly)
+      let cubesHTML = '';
+      for (let i = slotCoords.length - 1; i >= 0; i--) {
+        const c = slotCoords[i];
+        const slotInfo = evaluation.slots[i];
+        const isSelected = (state.activeSlot === i);
+        const animClass = (state.lastAnimatedSlot === i) ? 'animate-snap' : '';
+
+        cubesHTML += `
+          <div onclick="selectSlot(${i})"
+               style="left: ${c.x + 2}px; top: ${c.y - 24}px; width: 106px;"
+               class="absolute cursor-pointer flex flex-col items-center group ${animClass}">
+            ${state.showRuleBadges ? `
+              <div class="mb-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold shadow-sm border whitespace-nowrap transition-transform group-hover:scale-105
+                ${slotInfo.isGhost
+                  ? 'bg-slate-100 text-slate-600 border-slate-300'
+                  : 'bg-white text-purple-900 border-purple-300'}">
+                ${slotInfo.statusLabel}
+              </div>
+            ` : ''}
+            <div class="${isSelected ? 'ring-4 ring-orange-400/60 rounded-2xl' : ''} transition">
+              ${createIsometricCubeSVG(slotInfo.digit, slotInfo.isGhost, 98)}
+            </div>
+          </div>
+        `;
+      }
+
+      stage.innerHTML = `
+        <div class="relative w-[460px] h-[285px] sm:w-[490px] sm:h-[295px] select-none scale-[0.76] sm:scale-95 md:scale-100 origin-center">
+          <svg viewBox="0 0 490 295" class="w-full h-full overflow-visible">
+            <!-- Ground soft shadow -->
+            <ellipse cx="245" cy="235" rx="185" ry="38" fill="rgba(107, 33, 168, 0.08)" />
+            ${baseSVG}
+          </svg>
+          ${cubesHTML}
+        </div>
+      `;
+    }
+
+    /**
+     * Renders the 10-Digit Isometric Palette (0-9) matching image_f324fa.jpg
+     */
+    function renderDigitPalette() {
+      const palette = document.getElementById('digit-palette');
+      let html = '';
+
+      for (let d = 0; d <= 9; d++) {
+        const spec = BLOCK_SPECS[d];
+        // Prevent placing 0 in the leading slot (since numbers start at 10–99 or 100–999)
+        const isDisabled = (state.activeSlot === 0 && d === 0);
+
+        html += `
+          <button onclick="snapDigit(${d})"
+                  ${isDisabled ? 'disabled' : ''}
+                  class="block-card p-1.5 sm:p-2 flex flex-col items-center justify-between text-center
+                         ${isDisabled ? 'opacity-35 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}">
+            <div class="w-full flex items-center justify-between px-1 text-[11px] sm:text-xs font-extrabold text-slate-800">
+              <span>${spec.pinyin}</span>
+              <span class="bg-rose-50 text-rose-900 px-1 rounded font-bold">${spec.hanzi}</span>
+            </div>
+            <div class="my-0.5 flex items-center justify-center">
+              ${createIsometricCubeSVG(d, false, 48)}
+            </div>
+          </button>
+        `;
+      }
+
+      palette.innerHTML = html;
+    }
+
+    /**
+     * Master UI Refresh Function
+     */
+    function updateUI() {
+      const evaluation = evaluateNumberRules();
+
+      // Update Step 1 Base buttons & titles
+      const btn2 = document.getElementById('btn-base-2');
+      const btn3 = document.getElementById('btn-base-3');
+      const baseTitle = document.getElementById('base-title');
+
+      if (state.baseSize === 2) {
+        btn2.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition bg-purple-700 text-white shadow';
+        btn3.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition text-purple-800 hover:bg-white/60';
+        baseTitle.textContent = 'Tens Place Base (2-Digit: 10–99)';
+      } else {
+        btn3.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition bg-purple-700 text-white shadow';
+        btn2.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition text-purple-800 hover:bg-white/60';
+        baseTitle.textContent = 'Hundreds Place Base (3-Digit: 100–999)';
+      }
+
+      // Render 3D Isometric Assembly
+      renderIsometricAssembly(evaluation);
+
+      // Update Active Slot label & quick slot selector pills
+      const activeRole = evaluation.slots[state.activeSlot]?.role || '';
+      document.getElementById('active-slot-label').textContent = activeRole;
+
+      const slotBar = document.getElementById('slot-selector-bar');
+      slotBar.innerHTML = evaluation.slots.map((slot, idx) => `
+        <button onclick="selectSlot(${idx})"
+                class="px-3 py-1 rounded-lg text-xs font-bold border transition flex items-center gap-1.5
+                ${state.activeSlot === idx
+                  ? 'bg-orange-600 text-white border-orange-700 shadow-sm'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-purple-50'}">
+          <span>Slot ${idx + 1}: ${slot.role}</span>
+          <span class="px-1.5 py-0.2 rounded bg-black/15 font-extrabold">${slot.digit}</span>
+        </button>
+      `).join('');
+
+      // Update Step 3 Opacity Breakdown Cards
+      const breakdownEl = document.getElementById('opacity-breakdown');
+      breakdownEl.className = `grid grid-cols-1 ${state.baseSize === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-2 text-xs`;
+      breakdownEl.innerHTML = evaluation.slots.map((slot, idx) => `
+        <div onclick="selectSlot(${idx})"
+             class="cursor-pointer rounded-lg p-2.5 border transition
+             ${slot.isGhost
+               ? 'bg-slate-100/90 border-slate-300 text-slate-700'
+               : 'bg-white border-purple-200 text-slate-800 shadow-xs'}
+             ${state.activeSlot === idx ? 'ring-2 ring-orange-400' : ''}">
+          <div class="flex items-center justify-between font-bold mb-1">
+            <span class="text-purple-900">${slot.role}</span>
+            <span class="text-[11px] px-1.5 py-0.5 rounded ${slot.isGhost ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-800'}">
+              ${slot.isGhost ? 'Translucent (Silent)' : 'Solid (Voice)'}
+            </span>
+          </div>
+          <p class="text-[11px] leading-snug text-slate-600">${slot.reason}</p>
+        </div>
+      `).join('');
+
+      // Update Step 4 Number, Hanzi & Colour-Coded Pinyin Output
+      document.getElementById('output-digits').textContent = evaluation.numberValue;
+      document.getElementById('output-hanzi').textContent = evaluation.hanzi;
+      document.getElementById('output-literal').innerHTML = `Read as: <span class="text-slate-900 font-bold">${evaluation.literal}</span>`;
+      document.getElementById('special-rule-banner').innerHTML = evaluation.banner;
+
+      const pinyinContainer = document.getElementById('output-pinyin');
+      pinyinContainer.innerHTML = evaluation.pinyinParts.map(part => `
+        <span class="${part.colorClass}">${part.text}</span>
+      `).join('');
+
+      // Refresh Digit Palette (disables 0 if slot 0 is active)
+      renderDigitPalette();
+    }
+
+    /**
+     * User Actions
+     */
+    function setBaseMode(size) {
+      if (state.baseSize === size) return;
+      state.baseSize = size;
+      if (size === 2) {
+        state.digits = [1, 1]; // Default to 11 (shíyī) on 2-digit base
+        state.activeSlot = 0;
+      } else {
+        state.digits = [1, 0, 5]; // Default to 105 (yìbǎi líng wǔ) on 3-digit base
+        state.activeSlot = 1;
+      }
+      state.lastAnimatedSlot = -1;
+      updateUI();
+    }
+
+    function selectSlot(index) {
+      state.activeSlot = index;
+      state.lastAnimatedSlot = -1;
+      updateUI();
+    }
+
+    function snapDigit(digit) {
+      if (state.activeSlot === 0 && digit === 0) return;
+      state.digits[state.activeSlot] = digit;
+      state.lastAnimatedSlot = state.activeSlot;
+
+      // Automatically advance active slot to the next slot for smooth flow
+      if (state.activeSlot < state.baseSize - 1) {
+        state.activeSlot += 1;
+      }
+      updateUI();
+    }
+
+    function toggleRuleHints() {
+      state.showRuleBadges = !state.showRuleBadges;
+      const btn = document.getElementById('btn-toggle-hints');
+      btn.textContent = state.showRuleBadges ? '👁️ Rule Badges: ON' : '👁️ Rule Badges: OFF';
+      state.lastAnimatedSlot = -1;
+      updateUI();
+    }
+
+    function loadPreset(num) {
+      if (num < 100) {
+        state.baseSize = 2;
+        state.digits = [Math.floor(num / 10), num % 10];
+        state.activeSlot = 0;
+      } else {
+        state.baseSize = 3;
+        state.digits = [Math.floor(num / 100), Math.floor((num % 100) / 10), num % 10];
+        state.activeSlot = 1;
+      }
+      state.lastAnimatedSlot = -1;
+      updateUI();
+    }
+
+    function loadRandomNumber() {
+      if (state.baseSize === 2) {
+        const rand = Math.floor(Math.random() * 90) + 10; // 10..99
+        loadPreset(rand);
+      } else {
+        const rand = Math.floor(Math.random() * 900) + 100; // 100..999
+        loadPreset(rand);
+      }
+    }
+
+    /**
+     * Web Speech API Mandarin Pronunciation (zh-CN)
+     */
+    function speakCurrentNumber() {
+      const evaluation = evaluateNumberRules();
+      const btn = document.getElementById('btn-speak');
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(evaluation.speechText);
+        utterance.lang = 'zh-CN';
+        utterance.rate = 0.85; // Clear beginner learning pace
+
+        btn.classList.add('ring-4', 'ring-amber-300');
+        utterance.onend = () => btn.classList.remove('ring-4', 'ring-amber-300');
+        utterance.onerror = () => btn.classList.remove('ring-4', 'ring-amber-300');
+
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // Initialise on window load
+    window.onload = function () {
+      updateUI();
+    };
+  </script>
+</body>
+</html>
